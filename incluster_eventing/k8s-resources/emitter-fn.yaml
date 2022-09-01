@@ -1,43 +1,58 @@
 apiVersion: serverless.kyma-project.io/v1alpha1
-kind: GitRepository
-metadata:
-  creationTimestamp: null
-  name: kyma-examples-repo
-  namespace: default
-spec:
-  url: https://github.com/kyma-project/examples.git
-
----
-apiVersion: serverless.kyma-project.io/v1alpha1
 kind: Function
 metadata:
-  creationTimestamp: null
-  name: event-emitter
-  namespace: default
+    creationTimestamp: null
+    labels:
+        app.kubernetes.io/name: event-emitter
+    name: event-emitter
+    namespace: default
 spec:
-  baseDir: /incluster_eventing/src/emitter-fn/
-  reference: function-cicd-example
-  runtime: nodejs14
-  source: kyma-examples-repo
-  type: git
+    deps: |-
+        {
+          "name": "sanitise-fn",
+          "version": "0.0.1",
+          "dependencies": {
+            "uuidv4": "6.2.12",
+            "axios": "^0.21.1"
+          }
+        }
+    runtime: nodejs16
+    source: |-
+        const { v4: uuidv4 } = require('uuid');
+        module.exports = {
+            main: function (event, context) {
+                let sanitisedData = sanitise(event.data)
+                var eventOut=event.buildResponseCloudEvent(uuidv4(),"sap.kyma.custom.acme.payload.sanitised.v1",sanitisedData);
+                eventOut.source="kyma"
+                eventOut.specversion="1.0"
+                event.publishCloudEvent(eventOut);
+                console.log(`Payload pushed to sap.kyma.custom.acme.payload.sanitised.v1`,eventOut)
+                return eventOut;
+            }
+        }
+        let sanitise = (data)=>{
+            console.log(`sanitising data...`)
+            console.log(data)
+            return data
+        }
 
 ---
 apiVersion: gateway.kyma-project.io/v1alpha1
 kind: APIRule
 metadata:
-  creationTimestamp: null
-  name: incoming-http-trigger
-  namespace: default
+    creationTimestamp: null
+    name: incoming-http-trigger
+    namespace: default
 spec:
-  gateway: kyma-gateway.kyma-system.svc.cluster.local
-  rules:
-  - accessStrategies:
-    - handler: allow
-    methods:
-    - GET
-    path: /.*
-  service:
-    host: incoming
-    name: event-emitter
-    port: 80
+    gateway: kyma-gateway.kyma-system.svc.cluster.local
+    rules:
+        - accessStrategies:
+            - handler: allow
+          methods:
+            - GET
+          path: /.*
+    service:
+        host: incoming
+        name: event-emitter
+        port: 80
 

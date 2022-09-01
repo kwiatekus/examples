@@ -1,12 +1,8 @@
 name: event-receiver
 namespace: default
-runtime: nodejs14
+runtime: nodejs16
 source:
-    sourceType: git
-    url: https://github.com/kyma-project/examples.git
-    repository: kyma-examples-repo
-    reference: function-cicd-example
-    baseDir: /incluster_eventing/src/receiver-fn/
+    sourceType: inline
 subscriptions:
     - name: event-receiver
       protocol: ""

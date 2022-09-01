@@ -1,0 +1,20 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: event-receiver-scaled-object
+spec:
+  scaleTargetRef:
+    apiVersion:    serverless.kyma-project.io/v1alpha2
+    kind:          Function
+    name:          event-receiver
+  minReplicaCount:  0  # You can go with 0 ( scaling to zero ) in case your function is fed from messaging queue that would buffer unhandled requests or if you are fine with function downtime at cold start periods
+  maxReplicaCount:  5
+  cooldownPeriod: 60
+  pollingInterval: 10
+  triggers:
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus-operated.kyma-system.svc.cluster.local:9090
+      metricName: requests_per_sec
+      query: round(sum(irate(istio_requests_total{reporter=~"source",destination_service=~"event-receiver.default.svc.cluster.local"}[1m])), 0.1)
+      threshold: '2'
